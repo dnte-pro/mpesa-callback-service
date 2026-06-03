@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mpesa-callback-deployment
+  labels:
+    app: mpesa-callback
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mpesa-callback
+  template:
+    metadata:
+      labels:
+        app: mpesa-callback
+    spec:
+      containers:
+      - name: callback-api
+        image: y3g0n/mpesa-callback:v1.0.0
+        ports:
+        - containerPort: 8000
+        env:
+        - name: APP_VERSION
+          value: "v1.0.0"
+        # Probes ensure Kubernetes won't route traffic to broken pods
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mpesa-callback-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8000
+  selector:
+    app: mpesa-callback

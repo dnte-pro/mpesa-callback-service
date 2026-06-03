@@ -1,0 +1,64 @@
+name: M-PESA Callback API CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-scan:
+    name: Build, Scan, and Push Container Image
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python Environment
+      uses: actions/setup-python@v5
+      with:
+        python-month: '3.11'
+
+    - name: Run Basic Syntax and Code Lint Check
+      run: |
+        pip install flake8
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker Image Locally for Scanning
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        load: true
+        tags: y3g0n/mpesa-callback:latest
+
+    - name: DevSecOps Vulnerability Scan (Trivy)
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'y3g0n/mpesa-callback:latest'
+        format: 'table'
+        exit-code: '1' # Fails the pipeline if vulnerabilities matching severity are found
+        ignore-unfixed: true
+        severity: 'CRITICAL,HIGH'
+
+    - name: Log in to Docker Hub
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Push Verified Production Image
+      if: github.event_name != 'pull_request'
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        # Tags the image with both the specific commit SHA and 'latest'
+        tags: |
+          y3g0n/mpesa-callback:${{ github.sha }}
+          y3g0n/mpesa-callback:latest
