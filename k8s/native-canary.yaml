@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mpesa-callback-stable
+  namespace: default
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mpesa-callback
+  template:
+    metadata:
+      labels:
+        app: mpesa-callback
+        version: v1.0.0
+    spec:
+      containers:
+      - name: payment-api
+        image: nginx:alpine
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mpesa-callback-canary
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mpesa-callback
+  template:
+    metadata:
+      labels:
+        app: mpesa-callback
+        version: v2.0.0
+    spec:
+      containers:
+      - name: payment-api
+        image: nginx:alpine
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mpesa-callback-service
+  namespace: default
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: mpesa-callback
